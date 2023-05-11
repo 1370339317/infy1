@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+/.vs/infy1/v16
+/infinity_hook_pro/infinity_hook_pro/x64/Debug
+/infinity_hook_pro/.vs/infinity_hook_pro/v16
+/infinity_hook_pro/x64/Debug

@@ -339,6 +339,10 @@ namespace k_hook
 			address = k_utils::find_pattern_image(ntoskrnl,
 				"\x48\x8b\x05\x00\x00\x00\x00\x48\x85\xc0\x74\x00\x48\x83\x3d\x00\x00\x00\x00\x00\x74",
 				"xxx????xxxx?xxx?????x");
+			if (!address)
+			{
+				address = k_utils::find_pattern_image(ntoskrnl, "\x48\x8b\x05\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x48\x03\xd8\x48\x89\x1f", "xxx????x????xxxxxx");
+			}
 			if (!address) return false;
 			m_HvlGetQpcBias = reinterpret_cast<unsigned long long>(reinterpret_cast<char*>(address) + 7 + *reinterpret_cast<int*>(reinterpret_cast<char*>(address) + 3));
 			DbgPrintEx(0, 0, "[%s] hvl get qpc bias is 0x%llX \n", __FUNCTION__, m_HvlGetQpcBias);

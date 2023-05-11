@@ -1,46 +1,115 @@
 #include "hook.hpp"
 #include "imports.hpp"
 
+
 typedef NTSTATUS(*FNtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
 FNtCreateFile g_NtCreateFile = 0;
 NTSTATUS MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength)
 {
-	// NtCreateFile 的调用方必须在 IRQL = PASSIVE_LEVEL且 启用了特殊内核 APC 的情况下运行
-	if (KeGetCurrentIrql() != PASSIVE_LEVEL) return g_NtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
-	if (ExGetPreviousMode() == KernelMode) return g_NtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
-	if (PsGetProcessSessionId(IoGetCurrentProcess()) == 0) return g_NtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
 
-	if (ObjectAttributes &&
-		ObjectAttributes->ObjectName &&
-		ObjectAttributes->ObjectName->Buffer)
+	if (
+		!(KeGetCurrentIrql() != PASSIVE_LEVEL
+			|| ExGetPreviousMode() == KernelMode
+			//			|| PsGetProcessSessionId(IoGetCurrentProcess()) == 0
+			)
+		)
 	{
-		wchar_t* name = (wchar_t*)ExAllocatePool(NonPagedPool, ObjectAttributes->ObjectName->Length + sizeof(wchar_t));
-		if (name)
+		if (ObjectAttributes &&
+			ObjectAttributes->ObjectName &&
+			ObjectAttributes->ObjectName->Buffer)
 		{
-			RtlZeroMemory(name, ObjectAttributes->ObjectName->Length + sizeof(wchar_t));
-			RtlCopyMemory(name, ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length);
-
-			if (wcsstr(name, L"My\\Certificates") && !wcsstr(name, L".ini"))
+			wchar_t* name = (wchar_t*)ExAllocatePool(NonPagedPool, ObjectAttributes->ObjectName->Length + sizeof(wchar_t));
+			if (name)
 			{
-				// DbgPrintEx(0, 0, "Call %ws \n", name);
+				RtlZeroMemory(name, ObjectAttributes->ObjectName->Length + sizeof(wchar_t));
+				RtlCopyMemory(name, ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length);
+
+				if (wcsstr(name, L"test.txt"))
+				{
+					ExFreePool(name);
+					return STATUS_ACCESS_DENIED;
+				}
 
 				ExFreePool(name);
-				return STATUS_ACCESS_DENIED;
 			}
-
-			ExFreePool(name);
 		}
 	}
 
 	return g_NtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
+
+
+
 }
+
+
+
+typedef NTSTATUS(*FNtCreateMutant)(
+	_Out_ PHANDLE MutantHandle,
+	_In_ ACCESS_MASK DesiredAccess,
+	_In_opt_ POBJECT_ATTRIBUTES ObjectAttributes,
+	_In_ BOOLEAN InitialOwner
+	);
+FNtCreateMutant g_NtCreateMutant = 0;
+
+NTSTATUS MyNtCreateMutant(
+	_Out_ PHANDLE MutantHandle,
+	_In_ ACCESS_MASK DesiredAccess,
+	_In_opt_ POBJECT_ATTRIBUTES ObjectAttributes,
+	_In_ BOOLEAN InitialOwner
+)
+{
+	// NtCreateFile 的调用方必须在 IRQL = PASSIVE_LEVEL且 启用了特殊内核 APC 的情况下运行
+	if (
+		!(KeGetCurrentIrql() != PASSIVE_LEVEL
+			|| ExGetPreviousMode() == KernelMode
+			//			|| PsGetProcessSessionId(IoGetCurrentProcess()) == 0
+			)
+		)
+	{
+		//DbgPrintEx(0, 0, "Call %wZ \n", ObjectAttributes->ObjectName);
+		NTSTATUS ret = g_NtCreateMutant(MutantHandle, DesiredAccess, ObjectAttributes, InitialOwner);
+		if (ret == STATUS_OBJECT_NAME_EXISTS && ObjectAttributes)
+		{
+
+			wchar_t* name = (wchar_t*)ExAllocatePool(NonPagedPool, ObjectAttributes->ObjectName->Length + sizeof(wchar_t));
+			if (name)
+			{
+				RtlZeroMemory(name, ObjectAttributes->ObjectName->Length + sizeof(wchar_t));
+				RtlCopyMemory(name, ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length);
+
+				if (wcsstr(name, L"SUN_GAME"))
+				{
+					ret = STATUS_SUCCESS;
+				}
+
+				ExFreePool(name);
+			}
+
+
+		}
+		return ret;
+	}
+	else
+	{
+		return g_NtCreateMutant(MutantHandle, DesiredAccess, ObjectAttributes, InitialOwner);
+	}
+}
+
 
 void __fastcall ssdt_call_back(unsigned long ssdt_index, void** ssdt_address)
 {
 	// https://hfiref0x.github.io/
 	UNREFERENCED_PARAMETER(ssdt_index);
 
-	if (*ssdt_address == g_NtCreateFile) *ssdt_address = MyNtCreateFile;
+
+	if (*ssdt_address == g_NtCreateFile)
+	{
+		*ssdt_address = MyNtCreateFile;
+	}
+	else if (*ssdt_address == g_NtCreateMutant)
+	{
+		*ssdt_address = MyNtCreateMutant;
+	}
 }
 
 VOID DriverUnload(PDRIVER_OBJECT driver)
