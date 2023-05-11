@@ -67,8 +67,8 @@ NTSTATUS MyNtCreateMutant(
 		)
 	{
 		//DbgPrintEx(0, 0, "Call %wZ \n", ObjectAttributes->ObjectName);
-		NTSTATUS ret = g_NtCreateMutant(MutantHandle, DesiredAccess, ObjectAttributes, InitialOwner);
-		if (ret == STATUS_OBJECT_NAME_EXISTS && ObjectAttributes)
+		NTSTATUS ret = STATUS_SUCCESS;
+		if (ObjectAttributes)
 		{
 
 			wchar_t* name = (wchar_t*)ExAllocatePool(NonPagedPool, ObjectAttributes->ObjectName->Length + sizeof(wchar_t));
@@ -79,14 +79,25 @@ NTSTATUS MyNtCreateMutant(
 
 				if (wcsstr(name, L"SUN_GAME"))
 				{
-					ret = STATUS_SUCCESS;
+					DECLARE_UNICODE_STRING_SIZE(NewmutexName, 256);
+
+					//格式成新的符号链接名
+					if (NT_SUCCESS(RtlUnicodeStringPrintf(&NewmutexName, L"\\SUN_GAME\\COM%d", PsGetCurrentThreadId())))
+					{
+						OBJECT_ATTRIBUTES obj = *ObjectAttributes;
+						obj.ObjectName = &NewmutexName;
+						
+						ObjectAttributes = &obj;
+					}
+
 				}
 
 				ExFreePool(name);
 			}
-
-
+			ret = g_NtCreateMutant(MutantHandle, DesiredAccess, ObjectAttributes, InitialOwner);
+			return ret;
 		}
+		ret = g_NtCreateMutant(MutantHandle, DesiredAccess, ObjectAttributes, InitialOwner);
 		return ret;
 	}
 	else
