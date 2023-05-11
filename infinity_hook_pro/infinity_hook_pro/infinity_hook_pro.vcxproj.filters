@@ -16,6 +16,9 @@
     <Filter Include="hde">
       <UniqueIdentifier>{effae938-02ce-456b-a490-7714a0f6d15e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ssdt">
+      <UniqueIdentifier>{020ca589-de22-43d6-9577-7678d7e962eb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="infinity_hook_pro.inf">
@@ -31,6 +34,9 @@
     </ClCompile>
     <ClCompile Include="hook.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssdt.c">
+      <Filter>ssdt</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -54,6 +60,9 @@
     </ClInclude>
     <ClInclude Include="headers.hpp">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ssdt.h">
+      <Filter>ssdt</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

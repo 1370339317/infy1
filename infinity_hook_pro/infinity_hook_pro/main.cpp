@@ -1,6 +1,6 @@
 #include "hook.hpp"
 #include "imports.hpp"
-
+#include"ssdt.h"
 
 typedef NTSTATUS(*FNtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
 FNtCreateFile g_NtCreateFile = 0;
@@ -137,10 +137,16 @@ DriverEntry(
 
 	driver->DriverUnload = DriverUnload;
 
-	UNICODE_STRING str;
-	WCHAR name[256]{ L"NtCreateFile" };
-	RtlInitUnicodeString(&str, name);
-	g_NtCreateFile = (FNtCreateFile)MmGetSystemRoutineAddress(&str);
+	{
+		UNICODE_STRING str;
+		WCHAR name[256]{ L"NtCreateFile" };
+		RtlInitUnicodeString(&str, name);
+		g_NtCreateFile = (FNtCreateFile)MmGetSystemRoutineAddress(&str);
+	}
+	{
+		g_NtCreateMutant = (FNtCreateMutant)GetFunctionAddress("NtCreateMutant");
+	}
+
 
 	// ≥ı ºªØ≤¢π“π≥
 	return k_hook::initialize(ssdt_call_back) && k_hook::start() ? STATUS_SUCCESS : STATUS_UNSUCCESSFUL;
