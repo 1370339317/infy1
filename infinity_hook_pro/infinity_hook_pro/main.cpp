@@ -81,15 +81,16 @@ NTSTATUS MyNtCreateMutant(
 				{
 					DECLARE_UNICODE_STRING_SIZE(NewmutexName, 256);
 
+					static int count= 0;
 					//格式成新的符号链接名
-					if (NT_SUCCESS(RtlUnicodeStringPrintf(&NewmutexName, L"\\SUN_GAME\\COM%d", PsGetCurrentThreadId())))
+					if (NT_SUCCESS(RtlUnicodeStringPrintf(&NewmutexName, L"\\SUN_GAME\\COM%d", count)))
 					{
 						OBJECT_ATTRIBUTES obj = *ObjectAttributes;
 						obj.ObjectName = &NewmutexName;
 						
 						ObjectAttributes = &obj;
 					}
-
+					count++;
 				}
 
 				ExFreePool(name);
